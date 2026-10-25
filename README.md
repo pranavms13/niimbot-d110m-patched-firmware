@@ -6,6 +6,24 @@ A small patch to **D110_M firmware 4.31** that makes factory reset erase the pri
 
 This is an unofficial firmware modification. A failed update or incompatible image can leave a printer unable to boot. Compatibility with other models or hardware versions has not been established, and Bluetooth recovery is not guaranteed.
 
+## Quick reset for each refill
+
+**The patched firmware must already be installed. You do not need to flash it again.** Reset both the printer's history and the NFC sticker:
+
+1. Remove the reel and its NFC sticker. Disconnect the NIIMBOT phone app.
+2. Turn the printer **on**. On the Mac, open [NiimBlue](https://niim.blue) in **Google Chrome**, connect by Bluetooth, and select **gear → Tests → Reset**. Wait for it to finish. This clears all remembered rolls and restores factory settings.
+3. Turn the printer **off**. On the iPhone, open **NFC Tools → Other → Advanced NFC commands**.
+4. For the sticker verified in this project, paste this batch and hold the sticker at the top of the phone until it finishes:
+
+   ```text
+   1B:12:34:56:78,A2:05:74:2F:C7:63,A2:06:E0:17:DB:F9,30:05
+   ```
+
+   Expect `55 55`, then `0A`, then `0A`, and a readback starting with `74 2F C7 63 E0 17 DB F9`. If authentication or a write fails, stop. **For a different sticker, [validate it first](docs/RESET.md#read-or-validate-another-sticker-before-writing); this batch is not universal.**
+5. Attach the sticker to a replacement reel matching the original label size/type, load it, and turn the printer **on**. Reconnect and refresh the roll information: it should show **0 used**, then **1 used** after printing one label.
+
+See the [full reset guide and troubleshooting](docs/RESET.md) if a response differs or the old count remains.
+
 ## Start here
 
 | What you need | Instructions |
@@ -17,10 +35,11 @@ This is an unofficial firmware modification. A failed update or incompatible ima
 
 ## Downloads
 
-- **[GitHub release: firmware and checksum](https://github.com/pranavms13/niimbot-d110m-patched-firmware/releases/tag/v4.31-history-reset-r1)** — download the `.bin` and `SHA256SUMS.txt` assets together.
-- **[Patched D110_M 4.31 firmware](https://github.com/pranavms13/niimbot-d110m-patched-firmware/raw/refs/heads/main/firmware/D110_M_V4.31_history-reset.bin)** — select this complete, headered file in the flasher.
+- **[Download patched D110_M 4.31 firmware](https://github.com/pranavms13/niimbot-d110m-patched-firmware/releases/download/v4.31-history-reset-r1/D110_M_V4.31_history-reset.bin)** — select this complete, headered file in the flasher.
+- **[Download SHA256SUMS.txt](https://github.com/pranavms13/niimbot-d110m-patched-firmware/releases/download/v4.31-history-reset-r1/SHA256SUMS.txt)** — checksum for the release firmware above. Download both files into the same folder and run `shasum -a 256 -c SHA256SUMS.txt` on macOS.
+- [Release notes](https://github.com/pranavms13/niimbot-d110m-patched-firmware/releases/tag/v4.31-history-reset-r1).
 - [Original D110_M 4.31 update image](https://github.com/pranavms13/niimbot-d110m-patched-firmware/raw/refs/heads/main/firmware/D110_M_V4.31_original.bin) — retained for comparison and possible stock restoration if the updater remains reachable. It is not a full-device backup or guaranteed recovery image.
-- [SHA-256 checksums](firmware/SHA256SUMS.txt) and [patch manifest](firmware/patch-manifest.json).
+- [Repository checksums for both firmware images](firmware/SHA256SUMS.txt) and [patch manifest](firmware/patch-manifest.json).
 
 The patched download's SHA-256 is:
 
@@ -36,14 +55,7 @@ The sticker stores a used-label counter, and the printer remembers the largest c
 
 This patch changes factory reset command `0x28` to clear the 20 remembered roll records before saving settings. It retains the normal factory-default changes. It does **not** reset the sticker, disable NFC authentication, or remove label limits.
 
-For each refill:
-
-1. Remove the roll and sticker from the printer.
-2. With the printer on, connect in NiimBlue and select **gear → Tests → Reset**.
-3. Turn the printer off and reset the sticker with NFC Tools.
-4. Attach the sticker to the matching replacement reel, load it, and turn the printer on.
-
-The exact NFC commands and response checks are in [RESET.md](docs/RESET.md). **No repeat firmware flashing is needed for future refills.**
+Follow the [quick reset steps above](#quick-reset-for-each-refill) for each refill, or use the [full reset guide](docs/RESET.md) for detailed response checks and troubleshooting.
 
 ## Repository contents
 
