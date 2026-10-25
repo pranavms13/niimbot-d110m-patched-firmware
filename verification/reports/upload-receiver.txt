@@ -1,0 +1,5 @@
+PASS: 583 chunks plus finish stage the exact patched payload, including wrapper.
+PASS: stock receiver returns 0x9d success and update state 2 after payload CRC comparison.
+PASS: first-chunk version check rejects 4.30, accepts 4.31 and 4.32.
+PASS: damaged header CRC raises the stock rejection flag.
+LIMIT: outer transport CRC, radio, physical flash, commit worker and bootloader are not emulated.

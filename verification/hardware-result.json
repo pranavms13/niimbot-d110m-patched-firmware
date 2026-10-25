@@ -1,0 +1,33 @@
+{
+  "date": "2026-10-26",
+  "tested_devices": 1,
+  "model": "D110_M",
+  "hardware_version": "4.01",
+  "base_firmware": "4.31",
+  "patched_container_sha256": "909fe39cf7176e54999fb5a113f94c6792d503b9578362a1a79e00200564ecc8",
+  "bluetooth_update": {
+    "chunks": 583,
+    "device_checksum_accepted": true,
+    "commit_confirmed": true,
+    "boot_confirmed": true
+  },
+  "factory_reset": {
+    "saved_records_before": 1,
+    "saved_used_before": 7,
+    "saved_records_after": 0,
+    "saved_records_after_power_cycle": 0
+  },
+  "replacement_reel_test": {
+    "requested_labels": 1,
+    "printer_reported_used_before": 0,
+    "printer_reported_used_after": 1,
+    "print_progress_percent": 100,
+    "feed_progress_percent": 100,
+    "owner_confirmed_clear_print": true
+  },
+  "limitations": [
+    "One physical printer and one tested sticker/replacement reel.",
+    "No complete flash readback or bootloader recovery validation.",
+    "Post-print usage came from printer RFID information and history, not an independent NFC memory read."
+  ]
+}

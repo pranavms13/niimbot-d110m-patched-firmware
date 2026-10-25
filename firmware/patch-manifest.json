@@ -1,0 +1,26 @@
+{
+  "status": "Experimental build; see separate offline and hardware verification reports.",
+  "model": "D110_M",
+  "model_id": 2320,
+  "base_firmware": "4.31",
+  "reported_firmware_after_patch": "4.31",
+  "update_container_version": "4.31",
+  "original_app_sha256": "334260a24c516507386bd6cf99b7735bffb12a200b2354070c1878b627181e84",
+  "original_container_sha256": "dad95f6f1214781b607f1b569f4cf7848cf1adcb88eab58d2c1a6a27e7aa279e",
+  "patched_app_sha256": "845d8fb724e50d7b3144adf05568ec5b6357c7eef41f1d16df7dd00ae7e9f795",
+  "patched_container_sha256": "909fe39cf7176e54999fb5a113f94c6792d503b9578362a1a79e00200564ecc8",
+  "original_app_bytes": 116516,
+  "patched_app_bytes": 116536,
+  "call_offset_in_app": "0x7388",
+  "call_offset_in_container": "0x73a4",
+  "original_call_hex": "0bf04afd",
+  "patched_call_hex": "15f0ccf9",
+  "wrapper_offset_in_app": "0x1c724",
+  "wrapper_hex": "10b504462830f421e3f729fd2046f6f775fb10bd",
+  "cleared_ram": {
+    "address": "0x00020928",
+    "length": 244
+  },
+  "settings_flash_address": "0x010ff000",
+  "usage": "Remove roll, factory reset, power off/on, then insert the zero-counter sticker/refill."
+}

@@ -1,0 +1,18 @@
+PASS: deterministic build, original hash, payload/header CRCs, model and version.
+PASS: only the 4-byte save call changes in the original payload; 20 bytes appended.
+PASS: independent Thumb decode confirms wrapper, memset call, save call, and redirect.
+  0102c724: push {r4, lr}
+  0102c726: mov r4, r0
+  0102c728: adds r0, #0x28
+  0102c72a: movs r1, #0xf4
+  0102c72c: bl #0x1010182
+  0102c730: mov r0, r4
+  0102c732: bl #0x1022e20
+  0102c736: pop {r4, pc}
+PASS: 12 varied settings/history records clear and persist exactly 244 history bytes.
+PASS: defaults, adjacent settings, stack/registers and reset response are preserved.
+PASS: actual firmware CRC/save/load paths preserve empty history across simulated restart.
+PASS: repeated reset with unchanged settings does not cause another flash write.
+PASS: history lookup accepts the synthetic identity at zero after reset/reload.
+PASS: builder rejects raw payload, truncation, and corruption.
+LIMIT: no physical flash, bootloader execution, radio/peripheral emulation, or print test.

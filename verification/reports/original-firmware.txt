@@ -1,0 +1,9 @@
+PASS: decompressed RAM/key independently match firmware instructions.
+PASS: 100 deterministic blocks match firmware TEA encryption/decryption and CRC32.
+Zero-used, zero-reserved ciphertext: 74 2f c7 63 e0 17 db f9
+PASS: firmware history lookup restores reset count 0 to cached 200 and flags exhausted at limit 150.
+PASS: firmware command 0x28 leaves the 244-byte roll history region unchanged.
+PASS: all 256 selectors of command 0x52 leave roll history unchanged.
+PASS: startup preserves history with valid settings CRC, clears it with invalid CRC.
+PASS: 20 further distinct accepted identities evict the oldest of 20 history entries.
+PASS: synthetic identity with zero tag count and cached six produces effective count six.
