@@ -17,6 +17,7 @@ This is an unofficial firmware modification. A failed update or incompatible ima
 
 ## Downloads
 
+- **[GitHub release: firmware and checksum](https://github.com/pranavms13/niimbot-d110m-patched-firmware/releases/tag/v4.31-history-reset-r1)** — download the `.bin` and `SHA256SUMS.txt` assets together.
 - **[Patched D110_M 4.31 firmware](https://github.com/pranavms13/niimbot-d110m-patched-firmware/raw/refs/heads/main/firmware/D110_M_V4.31_history-reset.bin)** — select this complete, headered file in the flasher.
 - [Original D110_M 4.31 update image](https://github.com/pranavms13/niimbot-d110m-patched-firmware/raw/refs/heads/main/firmware/D110_M_V4.31_original.bin) — retained for comparison and possible stock restoration if the updater remains reachable. It is not a full-device backup or guaranteed recovery image.
 - [SHA-256 checksums](firmware/SHA256SUMS.txt) and [patch manifest](firmware/patch-manifest.json).

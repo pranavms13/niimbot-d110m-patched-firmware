@@ -1,0 +1,51 @@
+name: Publish verified firmware release
+
+on:
+  push:
+    tags:
+      - v4.31-history-reset-r1
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the release tag
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Verify and prepare the release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd firmware && sha256sum --check SHA256SUMS.txt)
+          mkdir -p build/release
+          cp firmware/D110_M_V4.31_history-reset.bin build/release/
+          printf '%s\n' '909fe39cf7176e54999fb5a113f94c6792d503b9578362a1a79e00200564ecc8  D110_M_V4.31_history-reset.bin' > build/release/SHA256SUMS.txt
+          (cd build/release && sha256sum --check SHA256SUMS.txt)
+
+      - name: Create draft, upload assets, and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "$RELEASE_TAG" --verify-tag --draft \
+            --title 'D110_M 4.31 — roll-history reset patch (r1)' \
+            --notes-file docs/releases/v4.31-history-reset-r1.md
+          gh release upload "$RELEASE_TAG" \
+            build/release/D110_M_V4.31_history-reset.bin \
+            build/release/SHA256SUMS.txt
+          gh release edit "$RELEASE_TAG" --draft=false --latest
