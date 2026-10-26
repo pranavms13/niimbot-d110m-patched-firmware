@@ -11,7 +11,7 @@ import struct
 import sys
 from zlib import crc32
 
-from unicorn import Uc, UC_ARCH_ARM, UC_MODE_THUMB, UC_MODE_MCLASS, UC_HOOK_CODE, UC_HOOK_MEM_WRITE
+from unicorn import Uc, UC_ARCH_ARM, UC_MODE_THUMB, UC_MODE_MCLASS, UC_HOOK_CODE, UC_HOOK_MEM_WRITE, UC_HOOK_MEM_READ
 from unicorn.arm_const import UC_ARM_REG_R0, UC_ARM_REG_R1, UC_ARM_REG_R2, UC_ARM_REG_R3, UC_ARM_REG_R4, UC_ARM_REG_R5, UC_ARM_REG_R6, UC_ARM_REG_R7, UC_ARM_REG_R8, UC_ARM_REG_R9, UC_ARM_REG_R10, UC_ARM_REG_R11, UC_ARM_REG_LR, UC_ARM_REG_SP, UC_ARM_REG_PC
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -27,13 +27,14 @@ image = (OUTPUT/manifest['image']).read_bytes()
 FW = image[28:]
 assert validate_container(image) == (431, 2320)
 original = (ROOT/'firmware/D110_M_V4.31_original.bin').read_bytes()[28:]
-allowed = {i for p in [0x4eee,0x4efc,0x7388] for i in range(p,p+4)}
+allowed = {i for p in [0x4eee,0x4efc,0x7388,0xe284] for i in range(p,p+4)}
 assert all(a==b or i in allowed for i,(a,b) in enumerate(zip(original,FW)))
 assert len(FW) == manifest['extension_offset']+manifest['extension_bytes']
 decoder = Cs(CS_ARCH_ARM,CS_MODE_THUMB); decoder.detail=True
 for hook in manifest['hooks']:
     insn=next(decoder.disasm(FW[hook['offset']:hook['offset']+4],BASE+hook['offset']))
     assert insn.mnemonic=='bl' and insn.operands[0].imm==hook['target']
+COOKIE = 0x31524652
 UID = bytes.fromhex('8804112233445566')
 MAGIC = b'REFILL\x01\xa5'
 STOP = 0x0100f000
@@ -45,7 +46,8 @@ class Device:
     def __init__(self, reserved=0, used=7):
         self.u = Uc(UC_ARCH_ARM, UC_MODE_THUMB | UC_MODE_MCLASS)
         for addr, size in [(0x20000, 0x50000), (0xf0000, 0x10000),
-                           (STOP, 0x1000), (BASE, 0x20000), (0x010ff000, 0x1000)]:
+                           (STOP, 0x1000), (BASE, 0x20000), (0x010ff000, 0x1000),
+                           (0xe000e000, 0x2000)]:
             self.u.mem_map(addr, size)
         self.u.mem_write(BASE, FW)
         self.u.mem_write(0x20004, decompress_initializer(FW))
@@ -82,10 +84,12 @@ class Device:
         self.write_fail = set(); self.read_fail = set(); self.auth_fail = set()
         self.corrupt_write = set(); self.swap_auth = set()
         self.flash_fail = False; self.reboot = False
+        self.marker_fail = False
         self.elapsed_calls = 0; self.lowest_sp = 0x6f000
         self.trace = deque(maxlen=12)
         self.u.hook_add(UC_HOOK_CODE, self.code)
         self.u.hook_add(UC_HOOK_MEM_WRITE, self.memory_write)
+        self.u.hook_add(UC_HOOK_MEM_READ, self.memory_read)
 
     def read(self, a, n): return bytes(self.u.mem_read(a, n))
     def arg(self, n): return self.u.reg_read(ARGS[n])
@@ -94,13 +98,19 @@ class Device:
         self.u.reg_write(UC_ARM_REG_PC, self.u.reg_read(UC_ARM_REG_LR))
 
     def memory_write(self, uc, access, address, size, value, _):
-        if address == 0xf857c:
-            assert value == 0x55 and self.read(0xf8574, 1)[0] & 1
+        assert address != 0xf857c, 'Do not use the chip reset that powered off the printer'
+        if address == 0xe000ed0c:
+            assert value == 0x05fa0004
+            assert self.read(0xfab20,8)==struct.pack('<II',COOKIE, COOKIE ^ 0xffffffff)
             assert self.responses and self.responses[-1][7] == 0
             assert self.events.index('flash') < self.events.index('send')
             assert self.elapsed_calls >= 2
             self.events.append('reboot'); self.reboot = True
             uc.emu_stop()
+
+    def memory_read(self, uc, access, address, size, value, _):
+        if self.marker_fail and 0xfab20 <= address < 0xfab28:
+            uc.mem_write(address, bytes(size))  # emulate a failed retention-register write
 
     def code(self, uc, address, size, _):
         self.trace.append(hex(address))
@@ -152,6 +162,9 @@ class Device:
         elif off == 0x4dc4:
             self.responses.append(self.read(self.arg(0), self.arg(1)))
             self.send_calls += 1; self.events.append('send'); self.ret()
+        elif off in (0x40c4,0x40f0):
+            assert self.arg(0)==1
+            self.ret()
         elif off == 0x78c8: self.ret(123)
         elif off == 0x78d4:
             assert self.arg(0) == 123 and self.arg(1) == 500
@@ -266,4 +279,98 @@ d=Device(); frame=d.command(0x28,b'\x01')
 assert frame==bytes.fromhex('555538010138aaaa') and not d.reboot
 assert d.auth_calls==0 and d.read(0x20928,244)==bytes(244)
 passed('ordinary factory reset still follows the original r1 path without touching NFC or rebooting')
+class StartupDevice(Device):
+    """Execute the patched main call, stock power-on and shutdown state machine.
+
+    Factory-test hardware detection, GPIO, radio and sound are simulated.
+    The MCU/ROM reset and full peripheral boot are not emulated.
+    """
+    def __init__(self, reason, state=0, factory_state=None, marker=False):
+        super().__init__()
+        self.u.mem_write(0x207d0, bytes([state]))
+        self.u.mem_write(0xf8578, struct.pack('<I', reason))
+        if marker: self.u.mem_write(0xfab20,struct.pack('<II',COOKIE,COOKIE ^ 0xffffffff))
+        self.u.mem_write(0x2077e, b'\x10')
+        self.factory_state = factory_state
+        self.boot_events = []
+
+    def code(self, uc, address, size, data):
+        off = address - BASE
+        if off == 0xe288:
+            uc.emu_stop(); return
+        if off == 0xd708:
+            self.boot_events.append('factory-check')
+            if self.factory_state is not None:
+                uc.mem_write(0x207d0, bytes([self.factory_state]))
+            self.ret(); return
+        if off == 0x46d4:
+            self.boot_events.append('stock-power-button-handler')
+        if off in (0xe13c, 0xa980, 0xafbe, 0x3b30, 0x3a08, 0xf544, 0xf510,
+                   0x12e20, 0xf3a4):
+            self.boot_events.append((off, self.arg(0), self.arg(1), self.arg(2)))
+            self.ret(); return
+        if off == 0x37f4:
+            assert (self.arg(0), self.arg(1)) == (0, 0x8000)
+            self.ret(1); return  # released power button
+        if off == 0xa944:
+            self.ret(0); return  # sound has finished
+        super().code(uc, address, size, data)
+
+    def call(self, offset, end=STOP):
+        self.u.reg_write(UC_ARM_REG_SP, 0x6f000)
+        self.u.reg_write(UC_ARM_REG_LR, STOP | 1)
+        for reg in SAVED: self.u.reg_write(reg, 0x11223000+reg)
+        self.u.emu_start((BASE+offset)|1, end, count=200000)
+        assert self.u.reg_read(UC_ARM_REG_PC) == end
+        assert self.u.reg_read(UC_ARM_REG_SP) == 0x6f000
+        for reg in SAVED: assert self.u.reg_read(reg) == 0x11223000+reg
+
+    def startup(self): self.call(0xe284, BASE+0xe288)
+
+d=StartupDevice(0,marker=True); d.startup()
+assert d.read(0x207d0,1)==b'\x02' and d.read(0xfab20,8)==bytes(8)
+assert d.boot_events[:2]==['factory-check','stock-power-button-handler']
+assert any(e[:3]==(0x3b30,1,8) for e in d.boot_events if isinstance(e,tuple))
+assert (0xafbe,1,1,1) in d.boot_events
+assert d.read(0x2077e,1)==b'\x11' and d.read(0x207f4,1)==b'\x01'
+d.call(0xf470)  # stock periodic worker must not shut the restarted printer down
+assert d.read(0x207d0,1)==b'\x02'
+assert not any(e[0]==0x3a08 for e in d.boot_events if isinstance(e,tuple))
+# The real power-button handler must still be able to turn it off afterwards.
+d.call(0x46d4)
+assert any(e[0]==0xf3a4 for e in d.boot_events if isinstance(e,tuple))
+passed('software reset calls stock power-on path, survives released-button worker, and still allows power-off')
+
+for reason in (0,1,2,3,0x10,0x11,0x20,0x21,0x40,0x41,0x80,0x81,
+               0x100,0x101,0x200,0x201,0x400,0x401,0x800,0x801):
+    d=StartupDevice(reason); d.startup()
+    assert d.boot_events==['factory-check']
+    assert d.read(0xf8578,4)==struct.pack('<I',reason)
+    assert d.read(0x207d0,1)==b'\x00'
+    d.call(0xf470)
+    assert d.read(0x207d0,1)==b'\x01'  # unchanged stock release-to-shutdown behavior
+passed('cold boot and every documented watchdog/voltage/temperature fault retain stock startup behavior')
+
+for state in (1,2,3):
+    d=StartupDevice(1,state=state,marker=True); d.startup()
+    assert d.boot_events==['factory-check'] and d.read(0x207d0,1)==bytes([state])
+d=StartupDevice(1,factory_state=2,marker=True); d.startup()
+assert d.boot_events==['factory-check'] and d.read(0x207d0,1)==b'\x02'
+d=StartupDevice(0,marker=True); d.startup()
+d.u.mem_write(0x207d0,b'\x00'); d.boot_events=[]; d.startup()
+assert d.boot_events==['factory-check'] and d.read(0x207d0,1)==b'\x00'
+passed('startup does not toggle an active/factory-test state or reuse a consumed restart cookie')
+for first,second in ((COOKIE,0),(0,COOKIE ^ 0xffffffff),(COOKIE,COOKIE),(0,0),(0xffffffff,0xffffffff)):
+    d=StartupDevice(1)
+    d.u.mem_write(0xfab20,struct.pack('<II',first,second)); d.startup()
+    assert d.boot_events==['factory-check'] and d.read(0x207d0,1)==b'\x00'
+for reason in (0,1,2,3,0xff3):
+    d=StartupDevice(reason,marker=True); d.startup()
+    assert d.read(0x207d0,1)==b'\x02' and d.read(0xfab20,8)==bytes(8)
+passed('partial/invalid cookies never trigger startup; valid pending cookie is consumed once regardless of reset-status retention')
+d=Device(); d.marker_fail=True
+assert d.command()==10 and not d.reboot
+assert d.tag[20:28]==counter_block(0,0) and d.read(0x010ff028,244)==bytes(244)
+assert d.read(0xfab20,8)==bytes(8)
+passed('unverified backup-register write reports status 0A after counter/settings reset, without reboot')
 print(f'{checks} groups passed. Hardware timing, physical NFC and actual reboot remain unverified.')

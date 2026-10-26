@@ -19,6 +19,7 @@ ERRORS = {
     7: 'NFC readback failed; original counter restored and verified',
     8: 'Settings flash save failed; sticker is zero but flash state is uncertain. No reboot requested',
     9: 'NFC write/readback failed and rollback could not be verified. Inspect the sticker before printing',
+    10: 'Reel/settings reset succeeded, but the restart marker could not be verified. No reboot requested',
 }
 
 
@@ -153,7 +154,7 @@ async def run(args):
         if len(reply) != 4 or reply[:3] != b'RF\x01': raise RuntimeError('Unexpected reset response')
         if reply[3] != 0: raise RuntimeError(ERRORS.get(reply[3], f'Unknown status {reply[3]}'))
         print('NFC and settings writes acknowledged; waiting for reset disconnect. '
-              'This experimental build may require pressing power to turn it back on.', flush=True)
+              'Leave the power button untouched until the reconnection check finishes.', flush=True)
         try: await asyncio.wait_for(c.disconnected.wait(), 15)
         except asyncio.TimeoutError as exc:
             raise RuntimeError('Reset acknowledged but no reboot disconnect observed. Do not repeat automatically.') from exc

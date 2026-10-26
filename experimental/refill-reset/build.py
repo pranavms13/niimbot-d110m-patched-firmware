@@ -63,7 +63,8 @@ def build(output, clang='clang'):
     app.extend(extension)
     hooks = []
     for offset, old, symbol in [(0x4eee, 0x4d94, 'refill_dispatch'),
-                                 (0x4efc, 0x4dc4, 'refill_send')]:
+                                 (0x4efc, 0x4dc4, 'refill_send'),
+                                 (0xe284, 0xd708, 'refill_startup')]:
         expected = encode_bl(BASE + offset, BASE + old)
         if app[offset:offset+4] != expected:
             raise ValueError(f'Unexpected stock call at {offset:x}')

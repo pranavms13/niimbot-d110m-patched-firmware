@@ -20,11 +20,14 @@ typedef void (*PowerFn)(u32, u32);
 typedef int (*FlashFn)(u32, const void *, u32);
 typedef int (*DispatchFn)(const u8 *, u8 *, u8 *);
 typedef void (*SendFn)(const u8 *, u32, u32);
+#define RESTART_COOKIE 0x31524652u
+#define RESTART_MARKER PTR32(0x000fab20) /* MLPM.BAKEUP_REG2/3 */
 
 /* Reply status: 0 success; 1 malformed; 2 busy; 3 read/authentication;
  * 4 bad CRC; 5 wrong identity; 6 write failed (rollback verified);
  * 7 readback failed (rollback verified); 8 settings save failed;
- * 9 rollback could not be verified; 0x10 capability query.
+ * 9 rollback could not be verified; 10 restart marker failed;
+ * 0x10 capability query.
  */
 INLINE int equal(const void *a, const void *b, u32 n) {
     return FN(0x204, CmpFn)(a, b, n) == 0;
@@ -146,6 +149,21 @@ INLINE u8 reset_reel(const u8 *expected_uid) {
     *PTR16(0x4830a) = 0;
     *PTR8(0x2077e) &= (u8)~0x43;
     *PTR32(0x207e4) &= ~(1u << 19);
+    /* SDK backup registers 2/3 have no reset function. Stock application
+     * and recovered bootloader do not reference them. Use a cookie and its
+     * complement, and verify retention-register writes before ACK/restart.
+     * Arm only after the NFC and settings transactions have succeeded.
+     */
+    FN(0x40c4, void (*)(u32))(1); /* MLPM write-access unlock */
+    FN(0x40f0, void (*)(u32))(1); /* MLPM register clock */
+    RESTART_MARKER[0] = RESTART_COOKIE;
+    RESTART_MARKER[1] = ~RESTART_COOKIE;
+    if (RESTART_MARKER[0] != RESTART_COOKIE ||
+        RESTART_MARKER[1] != ~RESTART_COOKIE) {
+        RESTART_MARKER[0] = RESTART_MARKER[1] = 0;
+        result = 10; /* counts saved at zero, but no reboot requested */
+        goto done;
+    }
     result = 0;
 done:
     power(0);
@@ -193,9 +211,35 @@ void refill_send(const u8 *packet, u32 length, u32 transport) {
      */
     while (!FN(0x78d4, int (*)(u32, u32))(start, 500)) feed();
     __asm__ volatile ("cpsid i" ::: "memory");
-    *PTR32(0x000f8574) |= 1; /* YC3122 MRSTGEN.RST_EN.SOFT */
+    /* Request the same ARM system reset used by the recovered stock
+     * bootloader at 0x0100111c. The checked backup-register marker was armed
+     * before the success reply; reset-status bits are not used as storage.
+     */
     __asm__ volatile ("dsb" ::: "memory");
-    *PTR32(0x000f857c) = 0x55; /* MRSTGEN.RESET: software reset */
+    *PTR32(0xe000ed0c) = 0x05fa0004; /* AIRCR.VECTKEY | SYSRESETREQ */
     __asm__ volatile ("dsb" ::: "memory");
     for (;;) __asm__ volatile ("nop");
+}
+
+/* Replaces the final startup call at 0xe284, after peripheral initialization
+ * and before foreground workers. Stock state 0 otherwise enters shutdown at
+ * 0xf470 when the power button is released, even after a software reset.
+ * Consume the verified backup-register cookie once and use stock power-on
+ * path (0x46d4), which also enables Bluetooth and initializes NFC state.
+ * Ordinary cold boots, update/fault resets without our cookie, and already
+ * active/test states keep stock behavior. A pending cookie is consumed even
+ * if a fault interrupts a requested restart, so it cannot cause a boot loop.
+ * No retained RAM, settings-flash flag or synthetic button is needed.
+ */
+__attribute__((used))
+void refill_startup(void) {
+    int restart = RESTART_MARKER[0] == RESTART_COOKIE &&
+        RESTART_MARKER[1] == ~RESTART_COOKIE;
+    if (restart) {
+        RESTART_MARKER[0] = 0;
+        RESTART_MARKER[1] = 0;
+    }
+    FN(0xd708, VoidFn)(); /* original factory-test startup check */
+    if (restart && *PTR8(0x207d0) == 0)
+        FN(0x46d4, VoidFn)();
 }
