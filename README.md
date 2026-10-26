@@ -5,9 +5,9 @@ Firmware modifications for **D110_M 4.31, hardware 4.01**, to reuse an NFC stick
 | Version | Reset method | Hardware result |
 | --- | --- | --- |
 | Published **r1 release** | Clear printer history, then reset the sticker with an iPhone | Reset, persistence and a replacement-reel test print passed |
-| **Experimental Bluetooth reset** | One Mac command resets the loaded sticker and printer history | Count **1 → 0** and persistence passed; **pressing power afterward is required** |
+| **Experimental Bluetooth reset** | One Mac command resets the loaded sticker and printer history | Count reset and persistence passed; **automatic restart works with USB power connected** |
 
-**The experimental command does not restart this printer automatically.** It disconnects/turns off, and the owner must turn it back on. Both versions have been tested on only one D110_M. See the [r1 results](docs/VERIFICATION.md) and [experimental hardware results](https://github.com/pranavms13/niimbot-d110m-patched-firmware/blob/feature/bluetooth-refill-reset/experimental/refill-reset/VALIDATION.md).
+**Connect USB power before using automatic restart.** The latest experimental build reconnects automatically when USB-powered. Battery-only restart remains unresolved; on battery, a manual power-on may be needed. Both versions have been tested on only one D110_M. See the [r1 results](docs/VERIFICATION.md) and [experimental hardware results](https://github.com/pranavms13/niimbot-d110m-patched-firmware/blob/feature/bluetooth-refill-reset/experimental/refill-reset/VALIDATION.md).
 
 This is an unofficial firmware modification. A failed update or incompatible image can leave a printer unable to boot. Compatibility with other models or hardware versions has not been established, and Bluetooth recovery is not guaranteed.
 
@@ -27,7 +27,7 @@ python -m pip install bleak==3.0.2
 
 If you already have a clone, update its `feature/bluetooth-refill-reset` branch instead of cloning again. For each refill:
 
-1. Leave the replacement reel and its NFC sticker **loaded**. Close the lid, turn the printer on near the Mac, and disconnect the NIIMBOT phone app.
+1. Connect the printer to **USB power** (a charger is sufficient; commands still use Bluetooth). Leave the replacement reel and its NFC sticker **loaded**, close the lid, turn the printer on near the Mac, and disconnect the NIIMBOT phone app.
 2. In the repository folder, activate the environment and find the printer:
 
    ```sh
@@ -41,7 +41,7 @@ If you already have a clone, update its `feature/bluetooth-refill-reset` branch 
    python experimental/refill-reset/bluetooth_refill.py reset --address ADDRESS
    ```
 
-4. Wait for **“NFC and settings writes acknowledged.”** When the printer turns off, **press its power button to turn it back on**. The client tries to reconnect for about a minute and checks that the same reel reports `used: 0`.
+4. Wait for **“NFC and settings writes acknowledged.”** Keep USB power connected and **leave the power button untouched**. The printer should restart automatically; the client reconnects and checks that the same reel reports `used: 0`. It allows about a minute for reconnection.
 5. If reconnection times out, turn the printer on and run this read-only check:
 
    ```sh
@@ -50,7 +50,7 @@ If you already have a clone, update its `feature/bluetooth-refill-reset` branch 
 
 The command clears all remembered rolls and restores factory settings. The loaded reel may immediately appear again as **one history record at zero**; this is expected. If an error occurs or the reply is lost, inspect the result before sending another reset.
 
-The hardware test confirmed **1 → 0**, with zero retained after a further manual power cycle. Automatic restart failed, and printing after the combined reset was not tested in that session. See the [experimental build/install instructions and limitations](https://github.com/pranavms13/niimbot-d110m-patched-firmware/blob/feature/bluetooth-refill-reset/experimental/refill-reset/README.md).
+Reset, persistence and printing after a combined reset have been checked on one printer. The owner confirmed automatic restart without a power-button press with USB connected. Battery-only automatic restart failed. The client reports `automatic_restart_verified: false` because it cannot independently detect a human button press; this field does not override the separately recorded hardware observations. See the [experimental build/install instructions and limitations](https://github.com/pranavms13/niimbot-d110m-patched-firmware/blob/feature/bluetooth-refill-reset/experimental/refill-reset/README.md).
 
 ## Quick reset: published r1 firmware and iPhone
 

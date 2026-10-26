@@ -4,12 +4,15 @@ Uses the same 200-byte chunk size as NiimBlue. Does not simulate the bootloader
 or send anything to a real printer. Flash I/O and its CRC read are substituted.
 """
 import struct
+import argparse
 from pathlib import Path
 from zlib import crc32
 from verify_firmware import Thumb, BASE
 
 ROOT=Path(__file__).resolve().parent.parent
-image=(ROOT/'firmware/D110_M_V4.31_history-reset.bin').read_bytes()
+parser=argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--image', type=Path, default=ROOT/'firmware/D110_M_V4.31_history-reset.bin')
+image=parser.parse_args().image.read_bytes()
 STAGING=0x01060000
 
 def receiver():
@@ -40,13 +43,13 @@ for sequence,offset in enumerate(range(0,len(image),200)):
     chunk(vm,sequence,image[offset:offset+200])
     assert vm.read(0x46b7d,1)==b'\x00'  # no rejection flag
     assert vm.responses[-1]==struct.pack('<HBBBB',sequence+1,0,0x9a,1,1)
-# Command 0x9c flushes the remaining 56 bytes in a full 256-byte final page,
+# Command 0x9c flushes any remaining payload in a full 256-byte final page,
 # checks the declared payload CRC, and replies 0x9d success before commit.
 assert vm.call(0x1ec0,0x60000,0x60100,0x60200)==1
 assert vm.responses[-1]==bytes.fromhex('0000009d0101')
 assert vm.read(0x46b7c,1)==b'\x02'
 assert vm.read(STAGING,len(image)-28)==image[28:]
-assert len(vm.writes)==456
+assert len(vm.writes)==(len(image)-28+255)//256
 print(f'PASS: {sequence+1} chunks plus finish stage the exact patched payload, including wrapper.')
 print('PASS: stock receiver returns 0x9d success and update state 2 after payload CRC comparison.')
 
