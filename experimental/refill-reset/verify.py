@@ -78,6 +78,7 @@ class Device:
         self.auth_calls = self.read_calls = self.write_calls = 0
         self.flash_calls = self.send_calls = 0
         self.power = []; self.responses = []; self.events = []
+        self.field_on = False; self.selected = False
         self.write_fail = set(); self.read_fail = set(); self.auth_fail = set()
         self.corrupt_write = set(); self.swap_auth = set()
         self.flash_fail = False; self.reboot = False
@@ -107,10 +108,16 @@ class Device:
         if address == STOP: uc.emu_stop(); return
         off = address - BASE
         if off == 0x7252:
-            self.power.append(self.arg(1)); self.ret()
+            mode = self.arg(1)
+            self.power.append(mode)
+            self.field_on = mode == 3
+            if not self.field_on: self.selected = False
+            self.ret()
         elif off == 0x533c:
             self.auth_calls += 1
+            assert self.field_on and not self.selected, 'Reselection needs a fresh NFC field state'
             if self.auth_calls in self.auth_fail: self.ret(0xf4); return
+            self.selected = True
             uid = bytes.fromhex('8804998877665544') if self.auth_calls in self.swap_auth else self.uid
             uc.mem_write(self.arg(1), uid); uc.mem_write(self.arg(2), bytes([len(uid)])); self.ret()
         elif off == 0x541c:
@@ -198,7 +205,7 @@ for reserved, used in [(0, 7), (0x1234, 186), (65535, 65535), (0, 0)]:
     assert saved == baseline.read(0x010ff000,316)
     assert d.read(0x4830a, 2) == bytes(2)
     assert d.read(0x20782, 4) == bytes(4)
-    assert d.power == [3,0] and d.write_calls == 2
+    assert d.power == [0,3,0,3,0] and d.write_calls == 2
     assert d.lowest_sp >= 0x6f000-2048
 passed('4 counter/reserved combinations: tag, settings match actual stock-defaults/r1 path, flash readback, reply then reboot')
 
@@ -221,7 +228,7 @@ for field, value, status in [('auth_fail',{1},3),('auth_fail',{2},3),
                               ('swap_auth',{1},5),('swap_auth',{2},5)]:
     d=Device(); setattr(d,field,value)
     assert d.command()==status and not d.reboot and d.write_calls==d.flash_calls==0
-    assert bytes(d.tag)==d.original_tag and d.power==[3,0]
+    assert bytes(d.tag)==d.original_tag and d.power[-1]==0
 passed('authentication/read failures and tag swaps before writing abort cleanly')
 for at in [20,36]:
     d=Device(); d.tag[at]^=1

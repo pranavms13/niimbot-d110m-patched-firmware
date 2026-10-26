@@ -152,7 +152,8 @@ async def run(args):
             raise RuntimeError('Reset outcome unknown; do not resend automatically. Reconnect using verify.') from exc
         if len(reply) != 4 or reply[:3] != b'RF\x01': raise RuntimeError('Unexpected reset response')
         if reply[3] != 0: raise RuntimeError(ERRORS.get(reply[3], f'Unknown status {reply[3]}'))
-        print('NFC and settings writes acknowledged; waiting for reboot.', flush=True)
+        print('NFC and settings writes acknowledged; waiting for reset disconnect. '
+              'This experimental build may require pressing power to turn it back on.', flush=True)
         try: await asyncio.wait_for(c.disconnected.wait(), 15)
         except asyncio.TimeoutError as exc:
             raise RuntimeError('Reset acknowledged but no reboot disconnect observed. Do not repeat automatically.') from exc
@@ -166,7 +167,8 @@ async def run(args):
             async with Connection(device) as c:
                 await c.identify()
                 result = await c.verify(uid)
-                result['reboot_disconnect_observed'] = True
+                result['reset_disconnect_observed'] = True
+                result['automatic_restart_verified'] = False
                 print(json.dumps(result, indent=2)); return
         except (BleakError, OSError, asyncio.TimeoutError): continue
     raise RuntimeError('Printer did not reconnect. If powered off, turn it on and run verify; automatic reboot is unverified.')

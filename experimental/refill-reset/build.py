@@ -83,7 +83,7 @@ def build(output, clang='clang'):
     assert validate_container(image) == (431, 2320)
     filename = 'D110_M_V4.31_refill-reset_EXPERIMENTAL.bin'
     digest = hashlib.sha256(image).hexdigest()
-    manifest = {'status': 'EXPERIMENTAL: NOT PHYSICALLY FLASHED OR VERIFIED',
+    manifest = {'status': 'EXPERIMENTAL: see VALIDATION.md for results tied to an exact image hash',
                 'model': 'D110_M', 'version': '4.31',
                 'image': filename, 'image_bytes': len(image), 'sha256': digest,
                 'extension_offset': extension_offset, 'extension_bytes': len(extension),

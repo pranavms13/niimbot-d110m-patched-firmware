@@ -1,4 +1,4 @@
-/* Experimental D110_M 4.31 extension. Not physically verified.
+/* Experimental D110_M 4.31 extension. See VALIDATION.md for hardware results.
  * Compile for Cortex-M0; all stock firmware entry points are hash-pinned
  * by build.py. No global/static RAM allocations or external C runtime.
  */
@@ -33,6 +33,15 @@ INLINE u32 crc(const void *p, u32 n) {
     return FN(0xb76c, CrcFn)(p, n);
 }
 INLINE void power(u32 mode) { FN(0x7252, PowerFn)(0, mode); }
+INLINE int select_tag(void *uid, u8 *uid_len) {
+    /* WUPA/anticollision must start from a fresh tag state, including when
+     * reselecting after authenticated reads or before rollback. Stock field
+     * control includes its settling delay. No foreground worker runs here.
+     */
+    power(0);
+    power(3);
+    return FN(0x533c, AuthFn)(0, uid, uid_len);
+}
 INLINE void feed(void) { FN(0x2100, VoidFn)(); }
 INLINE int page_read(u32 p, void *out) {
     feed();
@@ -45,7 +54,7 @@ INLINE int page_write(u32 p, void *in) {
 INLINE int restore_counter(u32 *old, u32 *readback, const u8 *expected_uid) {
     u32 uid[3];
     u8 uid_len = 0;
-    if (FN(0x533c, AuthFn)(0, uid, &uid_len) != 0 || uid_len != 8 ||
+    if (select_tag(uid, &uid_len) != 0 || uid_len != 8 ||
         !equal(uid, expected_uid, 8)) return 0;
     /* Always attempt both pages, including if the first write reports error. */
     page_write(5, old);
@@ -65,8 +74,7 @@ INLINE u8 reset_reel(const u8 *expected_uid) {
     u32 plain[30], readback[4], uid[3], original[2], encrypted[2];
     u8 uid_len = 0;
     u8 result = 3;
-    power(3);
-    if (FN(0x533c, AuthFn)(0, uid, &uid_len) != 0) goto done;
+    if (select_tag(uid, &uid_len) != 0) goto done;
     if (uid_len != 8 || !equal(uid, expected_uid, 8)) {
         result = 5;
         goto done;
@@ -96,7 +104,7 @@ INLINE u8 reset_reel(const u8 *expected_uid) {
     plain[1] = crc(plain, 4);
     FN(0x7f18, CryptoFn)(plain, encrypted);
     uid_len = 0;
-    if (FN(0x533c, AuthFn)(0, uid, &uid_len) != 0) goto done;
+    if (select_tag(uid, &uid_len) != 0) goto done;
     if (uid_len != 8 || !equal(uid, expected_uid, 8)) { result = 5; goto done; }
     if (page_write(5, encrypted) != 0 || page_write(6, encrypted + 1) != 0) {
         result = restore_counter(original, readback, expected_uid) ? 6 : 9;

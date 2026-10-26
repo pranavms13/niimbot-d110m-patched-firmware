@@ -26,7 +26,7 @@ See the [full reset guide and troubleshooting](docs/RESET.md) if a response diff
 
 ## Experimental combined reset over Bluetooth
 
-A separate [experimental firmware and Mac client](experimental/refill-reset/README.md) add one command that resets the loaded sticker, clears history/restores defaults, and requests a reboot. It passed offline checks but **has not been flashed or physically tested**. The published r1 release does not support this command; use the existing quick-reset procedure until the new candidate is validated.
+A separate [experimental firmware and Mac client](experimental/refill-reset/README.md) add one command that resets the loaded sticker, clears history/restores defaults, and requests a reboot. On one printer, **counter reset and persistence passed, but automatic restart failed: pressing power was necessary**. The published r1 release does not support this command; the combined reset remains experimental.
 
 ## Start here
 
