@@ -23,9 +23,9 @@ This is the backup-register marker plus ARM `SYSRESETREQ` build. It was restored
 | Count/history after USB restart | Same reel at 0 used; its sole saved history record also at 0 |
 | Printing after USB restart | After unplugging USB, one test print completed; reel and history both changed 0→1 |
 | Battery-only reset | Acknowledged, but no automatic reconnection within the client timeout |
-| Final restored-build retest | Pending loaded-reel check |
+| Final restored-build retest | Same reel changed 1→0; its saved record returned to 0; Bluetooth reconnected 8.13 seconds after acknowledgement; owner confirmed automatic restart |
 
-The first USB restart test started at zero. Earlier builds had established 1→0 reset and persistence after manual power cycling; the final restored-build retest will check that transition with automatic restart. The client cannot independently distinguish a human power-button press from automatic startup, so its `automatic_restart_verified: false` output means it has not verified that fact itself. The owner confirmation above is separate evidence.
+The first USB restart test started at zero. The final restored-build test established the 1→0 transition with automatic restart, and the owner confirmed the last test label was readable. Earlier builds established persistence after manual power cycling; a further manual-cycle check of this restored image has not yet been completed. The client cannot independently distinguish a human power-button press from automatic startup, so its `automatic_restart_verified: false` output means it has not verified that fact itself. The owner confirmation above is separate evidence.
 
 One current reel can be reinserted into history during detection, so one zero-count record after reset is expected. Multiple different saved rolls were cleared in offline tests, not on hardware. Factory-default fields were compared against the stock reset path offline; individual settings were not all queried physically. Physical power-loss recovery during NFC/flash writes has not been established.
 

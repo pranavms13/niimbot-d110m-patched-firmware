@@ -88,7 +88,7 @@ Only `00` causes software reboot. Successful settings clearing applies to **all 
 
 ## Hardware result and remaining validation
 
-The backup-marker/AIRCR build was installed with the roll removed. On USB power it acknowledged reset, disconnected, and reconnected in about eight seconds; the owner confirmed no power-button press. The same reel and its sole saved history record reported zero. A subsequent test print completed and increased both counts to one. Battery-only reset was acknowledged but did not reconnect automatically. A separate IC-reset experiment also failed on battery and was reverted.
+The backup-marker/AIRCR build was installed with the roll removed. On USB power it acknowledged reset, disconnected, and reconnected in about eight seconds; the owner confirmed no power-button press. The same reel and its sole saved history record reported zero. A subsequent test print completed and increased both counts to one. Battery-only reset was acknowledged but did not reconnect automatically. A separate IC-reset experiment also failed on battery and was reverted. The restored USB-working image then reset the same reel from 1 used to 0, cleared its saved count, and reconnected in 8.13 seconds. The owner confirmed automatic restart and a readable last test label.
 
 Testing used one printer and one stored roll. Clearing multiple different history records was checked offline, not physically. Individual factory settings were compared with the stock reset path offline. The bootloader was read for analysis but was not modified. This remains experimental and does not replace the published r1 release.
 
