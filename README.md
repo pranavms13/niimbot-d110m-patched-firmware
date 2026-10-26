@@ -24,6 +24,10 @@ This is an unofficial firmware modification. A failed update or incompatible ima
 
 See the [full reset guide and troubleshooting](docs/RESET.md) if a response differs or the old count remains.
 
+## Experimental combined reset over Bluetooth
+
+A separate [experimental firmware and Mac client](experimental/refill-reset/README.md) add one command that resets the loaded sticker, clears history/restores defaults, and requests a reboot. It passed offline checks but **has not been flashed or physically tested**. The published r1 release does not support this command; use the existing quick-reset procedure until the new candidate is validated.
+
 ## Start here
 
 | What you need | Instructions |
@@ -70,7 +74,7 @@ niimbot_tag.py              Offline NFC counter inspector and command generator
 verification/              Portable function-level checks and anonymized results
 ```
 
-The included Python utilities build or inspect files; they do not connect to or flash a printer. The device-specific scripts used for the physical test and the raw device logs are not included.
+The original Python utilities build or inspect files. The experimental Bluetooth client connects to the printer and can reset it, but does not flash firmware. The device-specific scripts used for the original physical test and the raw device logs are not included.
 
 ## References
 
