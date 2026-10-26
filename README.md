@@ -1,14 +1,60 @@
-# NIIMBOT D110_M: factory reset clears roll history
+# NIIMBOT D110_M: refill reset firmware
 
-A small patch to **D110_M firmware 4.31** that makes factory reset erase the printer's saved roll history. Combined with resetting the NFC sticker's counter, this allowed a tested sticker to be reused on a replacement reel.
+Firmware modifications for **D110_M 4.31, hardware 4.01**, to reuse an NFC sticker with a replacement reel of the same label size and type. Two versions are available:
 
-**Tested on one D110_M with hardware 4.01.** The patched firmware was installed over Bluetooth, history clearing survived a power cycle, and the owner confirmed a clear test print on the replacement reel. The used count advanced from **0 to 1**. See [verification results](docs/VERIFICATION.md).
+| Version | Reset method | Hardware result |
+| --- | --- | --- |
+| Published **r1 release** | Clear printer history, then reset the sticker with an iPhone | Reset, persistence and a replacement-reel test print passed |
+| **Experimental Bluetooth reset** | One Mac command resets the loaded sticker and printer history | Count **1 → 0** and persistence passed; **pressing power afterward is required** |
+
+**The experimental command does not restart this printer automatically.** It disconnects/turns off, and the owner must turn it back on. Both versions have been tested on only one D110_M. See the [r1 results](docs/VERIFICATION.md) and [experimental hardware results](https://github.com/pranavms13/niimbot-d110m-patched-firmware/blob/feature/bluetooth-refill-reset/experimental/refill-reset/VALIDATION.md).
 
 This is an unofficial firmware modification. A failed update or incompatible image can leave a printer unable to boot. Compatibility with other models or hardware versions has not been established, and Bluetooth recovery is not guaranteed.
 
-## Quick reset for each refill
+## Quick reset: experimental Bluetooth firmware
 
-**The patched firmware must already be installed. You do not need to flash it again.** Reset both the printer's history and the NFC sticker:
+**Use this procedure only if the corrected experimental firmware is already installed.** The r1 release downloads below do not support this command. You do not need to flash again for each refill, and no iPhone NFC write is needed for this procedure.
+
+For first-time Mac client setup, use Python 3.10 or newer:
+
+```sh
+git clone --branch feature/bluetooth-refill-reset https://github.com/pranavms13/niimbot-d110m-patched-firmware.git
+cd niimbot-d110m-patched-firmware
+python3 -m venv .venv-refill
+. .venv-refill/bin/activate
+python -m pip install bleak==3.0.2
+```
+
+If you already have a clone, update its `feature/bluetooth-refill-reset` branch instead of cloning again. For each refill:
+
+1. Leave the replacement reel and its NFC sticker **loaded**. Close the lid, turn the printer on near the Mac, and disconnect the NIIMBOT phone app.
+2. In the repository folder, activate the environment and find the printer:
+
+   ```sh
+   . .venv-refill/bin/activate
+   python experimental/refill-reset/bluetooth_refill.py scan
+   ```
+
+3. Replace `ADDRESS` with the address/UUID shown by the scan, then run:
+
+   ```sh
+   python experimental/refill-reset/bluetooth_refill.py reset --address ADDRESS
+   ```
+
+4. Wait for **“NFC and settings writes acknowledged.”** When the printer turns off, **press its power button to turn it back on**. The client tries to reconnect for about a minute and checks that the same reel reports `used: 0`.
+5. If reconnection times out, turn the printer on and run this read-only check:
+
+   ```sh
+   python experimental/refill-reset/bluetooth_refill.py verify --address ADDRESS
+   ```
+
+The command clears all remembered rolls and restores factory settings. The loaded reel may immediately appear again as **one history record at zero**; this is expected. If an error occurs or the reply is lost, inspect the result before sending another reset.
+
+The hardware test confirmed **1 → 0**, with zero retained after a further manual power cycle. Automatic restart failed, and printing after the combined reset was not tested in that session. See the [experimental build/install instructions and limitations](https://github.com/pranavms13/niimbot-d110m-patched-firmware/blob/feature/bluetooth-refill-reset/experimental/refill-reset/README.md).
+
+## Quick reset: published r1 firmware and iPhone
+
+**Use this procedure for the published r1 firmware.** It requires two separate resets. The firmware must already be installed; you do not need to flash it again.
 
 1. Remove the reel and its NFC sticker. Disconnect the NIIMBOT phone app.
 2. Turn the printer **on**. On the Mac, open [NiimBlue](https://niim.blue) in **Google Chrome**, connect by Bluetooth, and select **gear → Tests → Reset**. Wait for it to finish. This clears all remembered rolls and restores factory settings.
@@ -24,20 +70,19 @@ This is an unofficial firmware modification. A failed update or incompatible ima
 
 See the [full reset guide and troubleshooting](docs/RESET.md) if a response differs or the old count remains.
 
-## Experimental combined reset over Bluetooth
-
-A separate [experimental firmware and Mac client](experimental/refill-reset/README.md) add one command that resets the loaded sticker, clears history/restores defaults, and requests a reboot. On one printer, **counter reset and persistence passed, but automatic restart failed: pressing power was necessary**. The published r1 release does not support this command; the combined reset remains experimental.
-
 ## Start here
 
 | What you need | Instructions |
 | --- | --- |
-| Reset a reel on an **already patched printer** | [Reset the printer and NFC sticker](docs/RESET.md) |
+| Reset with experimental firmware already installed | [Bluetooth reset steps](#quick-reset-experimental-bluetooth-firmware) |
+| Reset with published r1 firmware already installed | [Printer and iPhone NFC steps](#quick-reset-published-r1-firmware-and-iphone) |
 | Install the patch for the first time | [Flash over Bluetooth from a Mac](docs/FLASHING.md) |
 | Understand the change or rebuild it | [Technical details and reproducible build](docs/TECHNICAL.md) |
 | See what was actually tested | [Verification](docs/VERIFICATION.md) |
 
-## Downloads
+## Downloads: published r1 release
+
+**These downloads contain the history-only r1 patch, not the experimental Bluetooth command.** For the experimental image, use its [build and installation guide](https://github.com/pranavms13/niimbot-d110m-patched-firmware/blob/feature/bluetooth-refill-reset/experimental/refill-reset/README.md).
 
 - **[Download patched D110_M 4.31 firmware](https://github.com/pranavms13/niimbot-d110m-patched-firmware/releases/download/v4.31-history-reset-r1/D110_M_V4.31_history-reset.bin)** — select this complete, headered file in the flasher.
 - **[Download SHA256SUMS.txt](https://github.com/pranavms13/niimbot-d110m-patched-firmware/releases/download/v4.31-history-reset-r1/SHA256SUMS.txt)** — checksum for the release firmware above. Download both files into the same folder and run `shasum -a 256 -c SHA256SUMS.txt` on macOS.
@@ -53,13 +98,13 @@ The patched download's SHA-256 is:
 
 **D110 and D110_M are different models.** This image is for model ID `2320` (`0x0910`), based on version **4.31**. It continues to report **4.31** after installation; the patch does not change the version display.
 
-## Why two resets are necessary
+## Why r1 needs two resets
 
 The sticker stores a used-label counter, and the printer remembers the largest count it has seen for that roll. Resetting only the sticker can leave the printer showing its remembered count. Stock factory reset preserves that history.
 
-This patch changes factory reset command `0x28` to clear the 20 remembered roll records before saving settings. It retains the normal factory-default changes. It does **not** reset the sticker, disable NFC authentication, or remove label limits.
+The r1 patch changes factory reset command `0x28` to clear the 20 remembered roll records before saving settings. It retains the normal factory-default changes. It does **not** reset the sticker, disable NFC authentication, or remove label limits.
 
-Follow the [quick reset steps above](#quick-reset-for-each-refill) for each refill, or use the [full reset guide](docs/RESET.md) for detailed response checks and troubleshooting.
+Follow the [r1 quick reset steps above](#quick-reset-published-r1-firmware-and-iphone) for each refill, or use the [full reset guide](docs/RESET.md) for detailed response checks and troubleshooting.
 
 ## Repository contents
 
